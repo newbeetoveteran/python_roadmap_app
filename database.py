@@ -1,34 +1,59 @@
-import json
-import os
-
-FILE_NAME = "progress.json"
+import json, os
+from datetime import timedelta
 
 
-def load_data():
-    if not os.path.exists(FILE_NAME):
+def file(user):
+    return f"progress_{user}.json"
+
+
+def load_progress(user):
+    if not os.path.exists(file(user)):
         return set()
-    with open(FILE_NAME, "r") as f:
+    with open(file(user)) as f:
         return set(json.load(f))
 
 
-def save_data(data):
-    with open(FILE_NAME, "w") as f:
+def save_progress(user, data):
+    with open(file(user), "w") as f:
         json.dump(list(data), f)
 
 
-def toggle_day(day):
-    data = load_data()
-    if day in data:
-        data.remove(day)
-    else:
-        data.add(day)
-    save_data(data)
+def toggle_day(user, day):
+    data = load_progress(user)
+    data.remove(day) if day in data else data.add(day)
+    save_progress(user, data)
 
 
-def is_completed(day):
-    data = load_data()
-    return day in data
+def is_completed(user, day):
+    return day in load_progress(user)
 
 
-def get_completed_days():
-    return len(load_data())
+def completed_count(user):
+    return len(load_progress(user))
+
+
+def get_streaks(user, df):
+    completed = sorted(load_progress(user))
+    if not completed:
+        return 0, 0
+
+    dates = [df.loc[df.Day == d, "Date"].values[0] for d in completed]
+    dates.sort()
+
+    longest = current = streak = 1
+    for i in range(1, len(dates)):
+        if dates[i] - dates[i - 1] == timedelta(days=1):
+            streak += 1
+            longest = max(longest, streak)
+        else:
+            streak = 1
+
+    today = df.Date.max()
+    current = 0
+    for d in reversed(dates):
+        if today - timedelta(days=current) == d:
+            current += 1
+        else:
+            break
+
+    return current, longest
